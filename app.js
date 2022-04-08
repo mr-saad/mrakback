@@ -32,6 +32,9 @@ app.get("/posters", async (req, res) => {
 app.post("/new", async (req, res) => {
   const uploadImage = await upload.uploader.upload(req.body.insert.image, {
     upload_preset: "ayans",
+    transformation: [{
+      quality: "70"
+    }]
   });
 
   const insert =
