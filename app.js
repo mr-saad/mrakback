@@ -2,8 +2,7 @@ require("dotenv").config();
 require("./connection");
 const express = require("express");
 const app = express();
-const Thumbnails = require("./thumbnails");
-const Posters = require("./posters");
+const All = require("./allTypes");
 const Contacts = require("./contacts");
 const cors = require("cors");
 const upload = require("./cloudinary");
@@ -18,67 +17,43 @@ app.use(cors());
 app.get("/", (req, res) => {
   res.send("homepage ayan");
 });
-app.get("/thumbnails", async (req, res) => {
-  const thumbnails = await Thumbnails.find();
-  console.log(thumbnails);
-  res.send(thumbnails);
-});
-app.get("/posters", async (req, res) => {
-  const posters = await Posters.find();
-  res.send(posters);
+app.get("/all", async (req, res) => {
+  res.send(await All.find());
 });
 
 //insert new
 app.post("/new", async (req, res) => {
   const uploadImage = await upload.uploader.upload(req.body.insert.image, {
     upload_preset: "ayans",
-    transformation: [{
-      quality: "70"
-    }]
+    transformation: [{ quality: 60 }],
   });
 
-  const insert =
-    req.body.isPoster === true
-      ? new Posters({
-          title: req.body.insert.title,
-          image: uploadImage.secure_url,
-          post_url: req.body.insert.post_url,
-          likes: req.body.insert.likes,
-          desc: req.body.insert.desc,
-          public_id: uploadImage.public_id,
-        })
-      : new Thumbnails({
-          title: req.body.insert.title,
-          image: uploadImage.secure_url,
-          post_url: req.body.insert.post_url,
-          likes: req.body.insert.likes,
-          desc: req.body.insert.desc,
-          public_id: uploadImage.public_id,
-        });
+  const insert = new All({
+    title: req.body.insert.title,
+    image: uploadImage.secure_url,
+    post_url: req.body.insert.post_url,
+    type: req.body.insert.type,
+    desc: req.body.insert.desc,
+    public_id: uploadImage.public_id,
+  });
 
   const inserted = await insert.save();
   res.send(inserted);
 });
 
-// // delete
+// delete
 app.post("/del", async (req, res) => {
-  const del = req.body.id;
-
-  const find = req.body.poster
-    ? await Posters.findByIdAndDelete(del)
-    : await Thumbnails.findByIdAndDelete(del);
-
-  await upload.uploader.destroy(find.public_id);
+  const del = await All.findByIdAndDelete(req.body.id);
+  await upload.uploader.destroy(req.body.public_id);
+  res.send(del);
 });
 
 // update
 app.post("/update", async (req, res) => {
   // find
-  const finded = req.body.isUpdatePoster
-    ? await Posters.findById(req.body.updateId)
-    : await Thumbnails.findById(req.body.updateId);
+  const finded = req.body.updateId;
 
-  const { image, likes, title, post_url, desc } = req.body.update;
+  const { image, type, title, post_url, desc } = req.body.update;
 
   // delele
   req.body.update.image !== "" &&
@@ -89,26 +64,18 @@ app.post("/update", async (req, res) => {
     req.body.update.image !== "" &&
     (await upload.uploader.upload(req.body.update.image, {
       upload_preset: "ayans",
+      transformation: [{ quality: 60 }],
     }));
 
   // update fields
-  const updated = req.body.isUpdatePoster
-    ? await Posters.findByIdAndUpdate(req.body.updateId, {
-        title: title === "" ? finded.title : title,
-        desc: desc === "" ? finded.desc : desc,
-        image: image === "" ? finded.image : uploadImage.secure_url,
-        post_url: post_url === "" ? finded.post_url : post_url,
-        likes: likes === 0 || "" ? finded.likes : likes,
-        public_id: uploadImage.public_id,
-      })
-    : await Thumbnails.findByIdAndUpdate(req.body.updateId, {
-        title: title === "" ? finded.title : title,
-        desc: desc === "" ? finded.desc : desc,
-        image: image === "" ? finded.image : image,
-        post_url: post_url === "" ? finded.post_url : post_url,
-        likes: likes === 0 || "" ? finded.likes : likes,
-        public_id: uploadImage.public_id,
-      });
+  await All.findByIdAndUpdate(req.body.updateId, {
+    title: title === "" ? finded.title : title,
+    desc: desc === "" ? finded.desc : desc,
+    image: image === "" ? finded.image : uploadImage.secure_url,
+    post_url: post_url === "" ? finded.post_url : post_url,
+    type: type === "" ? finded.type : type,
+    public_id: uploadImage.public_id,
+  });
 });
 
 //contact
