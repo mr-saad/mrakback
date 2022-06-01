@@ -29,11 +29,8 @@ app.post("/new", async (req, res) => {
   });
 
   const insert = new All({
-    title: req.body.insert.title,
+    ...req.body.insert,
     image: uploadImage.secure_url,
-    post_url: req.body.insert.post_url,
-    type: req.body.insert.type,
-    desc: req.body.insert.desc,
     public_id: uploadImage.public_id,
   });
 
@@ -43,39 +40,54 @@ app.post("/new", async (req, res) => {
 
 // delete
 app.post("/del", async (req, res) => {
-  const del = await All.findByIdAndDelete(req.body.id);
-  await upload.uploader.destroy(req.body.public_id);
-  res.send(del);
+  try {
+    const del = await All.findByIdAndDelete(req.body._id);
+    await upload.uploader.destroy(req.body.public_id);
+    res.send(del);
+  } catch (error) {
+    res.json(error);
+    console.error(error);
+  }
 });
 
 // update
 app.post("/update", async (req, res) => {
-  // find
-  const finded = req.body.updateId;
+  try {
+    // find
+    const finded = await All.findById(req.body.updateId);
 
-  const { image, type, title, post_url, desc } = req.body.update;
+    const { image, type, title, post_url, desc } = req.body.update;
 
-  // delele
-  req.body.update.image !== "" &&
-    (await upload.uploader.destroy(finded.public_id));
-
-  // upload again
-  const uploadImage =
+    // // delele
     req.body.update.image !== "" &&
-    (await upload.uploader.upload(req.body.update.image, {
-      upload_preset: "ayans",
-      transformation: [{ quality: 60 }],
-    }));
+      (await upload.uploader.destroy(finded.public_id));
 
-  // update fields
-  await All.findByIdAndUpdate(req.body.updateId, {
-    title: title === "" ? finded.title : title,
-    desc: desc === "" ? finded.desc : desc,
-    image: image === "" ? finded.image : uploadImage.secure_url,
-    post_url: post_url === "" ? finded.post_url : post_url,
-    type: type === "" ? finded.type : type,
-    public_id: uploadImage.public_id,
-  });
+    // // upload new one
+    const uploadImage =
+      req.body.update.image !== "" &&
+      (await upload.uploader.upload(req.body.update.image, {
+        upload_preset: "ayans",
+        transformation: [{ quality: 60 }],
+      }));
+
+    // // update fields
+    const updated = await All.findByIdAndUpdate(
+      req.body.updateId,
+      {
+        title: title === "" ? finded.title : title,
+        desc: desc === "" ? finded.desc : desc,
+        image: image === "" ? finded.image : uploadImage.secure_url,
+        post_url: post_url === "" ? finded.post_url : post_url,
+        type: type === "" ? finded.type : type,
+        public_id: uploadImage.public_id,
+      },
+      { new: true }
+    );
+    console.log(updated);
+    res.send(updated);
+  } catch (error) {
+    res.json(error);
+  }
 });
 
 //contact
